@@ -1,0 +1,10 @@
+{
+  "host": "",
+  "port": "",
+  "username": "",
+  "password": "",
+  "localDir": "",
+  "remoteDir": "",
+  "remoteExtractedDir": "dist",
+  "remoteTarFileName": "dist.tar.gz"
+}
