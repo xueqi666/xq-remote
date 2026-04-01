@@ -1,7 +1,15 @@
 {
   "name": "xq-remote",
-  "version": "1.1.2",
+  "version": "1.1.4",
   "description": "A simple Node.js tool for deploying local files to a remote server via SSH.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xueqi666/xq-remote.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xueqi666/xq-remote/issues"
+  },
+  "homepage": "https://github.com/xueqi666/xq-remote#readme",
   "main": "remote.js",
   "bin": {
     "xq-remote": "remote.js"
