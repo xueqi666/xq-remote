@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-const { Client } = require('ssh2');
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+const { Client } = require("ssh2");
+const fs = require("fs");
+const path = require("path");
+const { execSync } = require("child_process");
 
 // 获取命令行参数作为环境名
 const envArg = process.argv[2];
@@ -10,28 +10,35 @@ if (envArg) {
   process.env.NODE_ENV = envArg;
 }
 
-const configEnv = require('config');
-console.log(`[xq-remote] 当前加载环境: ${process.env.NODE_ENV || 'default'}`);
+const configEnv = require("config");
+console.log(`[xq-remote] 当前加载环境: ${process.env.NODE_ENV || "default"}`);
 
 let remoteDir;
 try {
-  remoteDir = configEnv.get('remoteDir');
+  remoteDir = configEnv.get("remoteDir");
 } catch (e) {
   console.error(
-    `[xq-remote] 错误: 无法在 config/${process.env.NODE_ENV || 'default'}.json 中找到 'remoteDir' 配置。请检查配置文件是否存在且格式正确。`
+    `[xq-remote] 错误: 无法在 config/${process.env.NODE_ENV || "default"}.json 中找到 'remoteDir' 配置。请检查配置文件是否存在且格式正确。`,
   );
   process.exit(1);
 }
+
+// 获取配置中的 base64 密码并解码
+const base64Password = configEnv.get("password");
+const decodedPassword = base64Password
+  ? Buffer.from(base64Password, "base64").toString("utf-8")
+  : undefined;
+
 // 配置信息
 const config = {
-  host: configEnv.get('host'), // 服务器地址
-  port: configEnv.get('port'), // SSH 端口
-  username: configEnv.get('username'), // 用户名
-  password: configEnv.get('password'), // 建议使用 SSH 密钥
-  localDir: path.resolve(process.cwd(), configEnv.get('localDir')), // 本地 dist 目录
+  host: configEnv.get("host"), // 服务器地址
+  port: configEnv.get("port"), // SSH 端口
+  username: configEnv.get("username"), // 用户名
+  password: decodedPassword, // 这里使用解码后的明文密码
+  localDir: path.resolve(process.cwd(), configEnv.get("localDir")), // 本地 dist 目录
   remoteDir,
-  remoteExtractedDir: `${remoteDir}/${configEnv.get('remoteExtractedDir')}`, // **自定义解压目录**
-  tarFileName: configEnv.get('remoteTarFileName') || 'dist.tar.gz' // 远程 tar 包名
+  remoteExtractedDir: `${remoteDir}/${configEnv.get("remoteExtractedDir")}`, // **自定义解压目录**
+  tarFileName: configEnv.get("remoteTarFileName") || "dist.tar.gz", // 远程 tar 包名
 };
 
 // **Step 1: 压缩 dist 文件夹**
@@ -74,11 +81,11 @@ function executeRemoteCommands(conn, remoteTarFile) {
     tar -xzf ${remoteTarFile} -C ${config.remoteExtractedDir}
     echo "解压完成"
 
+    echo "修改目录权限为 777..."
+    chmod -R 777 ${config.remoteExtractedDir}
+
     echo "删除旧 tar 文件"
     rm -f ${remoteTarFile}
-
-    echo "切换软链接到 ${config.remoteExtractedDir}"
-    ln -sfn ${config.remoteExtractedDir} ${config.remoteDir}/dist
 
     echo "部署完成"
   `;
@@ -90,14 +97,14 @@ function executeRemoteCommands(conn, remoteTarFile) {
     }
 
     stream
-      .on('close', (code) => {
+      .on("close", (code) => {
         conn.end();
       })
-      .on('data', (data) => {
-        console.log('远程输出:', data.toString());
+      .on("data", (data) => {
+        console.log("远程输出:", data.toString());
       })
-      .stderr.on('data', (data) => {
-        console.error('远程错误:', data.toString());
+      .stderr.on("data", (data) => {
+        console.error("远程错误:", data.toString());
       });
   });
 }
@@ -107,7 +114,7 @@ function deploy() {
   const tarFilePath = compressDist();
   const conn = new Client();
 
-  conn.on('ready', () => {
+  conn.on("ready", () => {
     const remoteTarFile = `${config.remoteDir}/${config.tarFileName}`;
 
     uploadFile(tarFilePath, remoteTarFile, conn, () => {
@@ -115,16 +122,21 @@ function deploy() {
     });
   });
 
-  conn.on('error', (err) => {
-    console.error(`[xq-remote] SSH 连接失败 (${process.env.NODE_ENV || 'default'}):`, err.message);
-    console.error(`请检查 config/${process.env.NODE_ENV || 'default'}.json 中的 host, port, username, password 是否正确。`);
+  conn.on("error", (err) => {
+    console.error(
+      `[xq-remote] SSH 连接失败 (${process.env.NODE_ENV || "default"}):`,
+      err.message,
+    );
+    console.error(
+      `请检查 config/${process.env.NODE_ENV || "default"}.json 中的 host, port, username, password 是否正确。`,
+    );
   });
 
   conn.connect({
     host: config.host,
     port: config.port,
     username: config.username,
-    password: config.password
+    password: config.password,
   });
 }
 
