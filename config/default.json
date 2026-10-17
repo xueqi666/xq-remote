@@ -3,8 +3,9 @@
   "port": "",
   "username": "",
   "password": "",
-  "localDir": "",
+  "localDir": "dist",
   "remoteDir": "",
   "remoteExtractedDir": "dist",
-  "remoteTarFileName": "dist.tar.gz"
+  "remoteTarFileName": "dist.tar.gz",
+  "requiredFiles": ["index.html"]
 }

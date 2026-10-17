@@ -2,3 +2,9 @@ node_modules/
 config/default.json
 *.log
 .DS_Store
+# 功能文档保留在源码仓库，不随 npm 包发布。
+docs/
+# 排除本地构建产物和部署压缩包，避免将旧 dist 打进 npm 包。
+dist/
+*.tar.gz
+*.tgz

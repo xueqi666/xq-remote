@@ -1,6 +1,6 @@
 {
   "name": "xq-remote",
-  "version": "1.1.4",
+  "version": "1.2.1",
   "description": "A simple Node.js tool for deploying local files to a remote server via SSH.",
   "repository": {
     "type": "git",
@@ -23,7 +23,6 @@
   "author": "xueqi666",
   "license": "MIT",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "remote": "cross-env NODE_ENV=remote node remote.js"
   },
   "dependencies": {
