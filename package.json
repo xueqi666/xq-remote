@@ -12,7 +12,9 @@
   "homepage": "https://github.com/xueqi666/xq-remote#readme",
   "main": "remote.js",
   "bin": {
-    "xq-remote": "remote.js"
+    "xq-remote": "remote.js",
+    "xq-remote-encrypt": "encrypt.js",
+    "xq-remote-decrypt": "decrypt.js"
   },
   "keywords": [
     "ssh",
@@ -23,6 +25,8 @@
   "author": "xueqi666",
   "license": "MIT",
   "scripts": {
+    "encrypt": "node encrypt.js",
+    "decrypt": "node decrypt.js",
     "remote": "cross-env NODE_ENV=remote node remote.js"
   },
   "dependencies": {

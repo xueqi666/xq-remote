@@ -29,7 +29,7 @@ npm install xq-remote -D
   "host": "主机",
   "port": "端口",
   "username": "用户名",
-  "password": "密码",
+  "password": "Base64编码后的密码",
   "localDir": "dist",
   "requiredFiles": ["index.html"],
   "remoteDir": "/var/www/my-app",
@@ -62,6 +62,28 @@ xq-remote test
 环境选择优先级为：命令行参数 > `NODE_CONFIG_ENV` > `NODE_ENV`。显式指定环境时，必须实际加载到该名称的配置文件，例如 `prod.json`；缺少文件或名称写错会立即终止，禁止仅回退到默认配置部署。未指定环境时沿用 node-config 的默认合并规则（包括可能存在的 `development`、`local` 配置），并要求加载到 `default` 配置。每次运行都会打印实际配置来源，支持 `NODE_CONFIG_DIR` 指定配置目录。
 
 目录替换包含两次重命名，存在短暂切换间隙，不是零停机发布。解压或权限设置失败时旧版本不变；安装失败会尝试恢复旧版本，恢复失败时保留备份并打印路径。远程需要 Linux 常用的 `tar`、`find`、`mktemp` 和支持 `mv -T` 的工具。
+
+## Base64 编码与解码
+
+源码项目执行：
+
+```bash
+npm run encrypt
+npm run decrypt
+```
+
+命令名称保留为 `encrypt` / `decrypt`，实际使用本项目已有的 Base64 编码、解码，无需口令。兼容 Node 14，无新增依赖。不传参数时交互输入，输入内容正常显示，也可以传入文本参数：
+
+```bash
+npm run encrypt -- "hello"
+# 输出 aGVsbG8=
+npm run decrypt -- "aGVsbG8="
+# 输出 hello
+```
+
+编码结果可以直接填入部署配置的 `password`。原有 `node encode.js "文本"` 继续可用，统一只输出编码结果。安装 npm 包后可使用 `npx xq-remote-encrypt` / `npx xq-remote-decrypt`。自动化通过 `--stdin` 传入原始文本，无需 JSON。
+
+Base64 是可逆编码，不是加密。详见[编码解码说明](https://github.com/xueqi666/xq-remote/blob/main/docs/encryption.md)。
 
 ## License
 
