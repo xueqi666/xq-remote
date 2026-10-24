@@ -3,6 +3,18 @@ const fs = require("fs");
 // 本地路径按宿主系统解析，包内相对路径使用 POSIX 格式。
 const path = require("path");
 
+// 校验可选的部署后命令清单，保留 shell 原文中的引号、空格和换行。
+function normalizeRemoteGoOn(value = []) {
+  if (!Array.isArray(value)) throw new Error("remoteGoOn 必须是命令字符串数组");
+  return value.map((command, index) => {
+    if (typeof command !== "string" || !command.trim() || command.includes("\0")) {
+      throw new Error(`remoteGoOn 第 ${index + 1} 项必须是非空命令字符串，且不能包含空字符`);
+    }
+    // 将 Windows 换行转为远程 shell 使用的 LF，其他命令内容不变。
+    return command.replace(/\r\n/g, "\n");
+  });
+}
+
 // 规范化必要文件清单，禁止绝对路径、目录自身和向上越界。
 function normalizeRequiredFiles(value = []) {
   if (!Array.isArray(value)) throw new Error("requiredFiles 必须是相对文件路径数组");
@@ -91,6 +103,8 @@ function loadDeploymentConfig() {
   console.log(`[xq-remote] 实际配置来源: ${sources.map((source) => source.name).join(", ")}`);
   // 必要文件检查可选，通用文件部署默认只检查构建目录含有实际内容。
   const requiredFiles = normalizeRequiredFiles(configEnv.has("requiredFiles") ? configEnv.get("requiredFiles") : []);
+  // 未配置或空数组时不执行后续命令；错误配置在连接 SSH 前终止。
+  const remoteGoOn = normalizeRemoteGoOn(configEnv.has("remoteGoOn") ? configEnv.get("remoteGoOn") : []);
   // 校验先于打包和 SSH，失败时不会触及服务器。
   const localDir = validateLocalBuild(configEnv.get("localDir"), requiredFiles);
   // 保持现有 Base64 密码配置的兼容性。
@@ -115,6 +129,7 @@ function loadDeploymentConfig() {
     password: password ? Buffer.from(password, "base64").toString("utf8") : undefined, // 解码后的登录密码。
     localDir, // 已检查的本地构建目录。
     requiredFiles, // 本地和远程均需检查的文件清单。
+    remoteGoOn, // 部署文件替换成功后按顺序执行的远程命令。
     remoteDir, // 远程部署父目录。
     remoteExtractedDir: `${remoteDir}/${extractedName}`, // 线上版本目录。
     tarFileName, // SFTP 上传包的相对文件名。
@@ -122,4 +137,4 @@ function loadDeploymentConfig() {
   };
 }
 
-module.exports = { normalizeRequiredFiles, validateLocalBuild, loadDeploymentConfig };
+module.exports = { normalizeRemoteGoOn, normalizeRequiredFiles, validateLocalBuild, loadDeploymentConfig };

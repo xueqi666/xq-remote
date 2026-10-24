@@ -147,7 +147,7 @@ function buildRemoteCommands(config, remoteTarFile) {
 
     echo "删除上传的 tar 文件..."
     rm -f -- ${archive}
-    echo "部署完成"
+    echo "部署文件替换完成"
   `;
 }
 

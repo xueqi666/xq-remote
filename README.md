@@ -9,6 +9,7 @@ A simple Node.js tool for deploying local files to a remote server via SSH. It v
 - **Build Validation**: Rejects empty builds and checks optional required files before upload and after extraction.
 - **Safe Replacement**: Extracts and prepares the new version before switching directories, restores the previous version if installation fails, and removes obsolete files after a successful switch.
 - **Environment Checks**: Requires an exact configuration file match for an explicitly selected environment and prints loaded configuration sources.
+- **Post-deployment Commands**: Runs optional `remoteGoOn` commands on the server in order, waiting for each to succeed before starting the next.
 - **Configurable**: Easy configuration via `config/default.json`.
 
 ## Installation
@@ -34,7 +35,8 @@ npm install xq-remote -D
   "requiredFiles": ["index.html"],
   "remoteDir": "/var/www/my-app",
   "remoteExtractedDir": "dist",
-  "remoteTarFileName": "dist.tar.gz"
+  "remoteTarFileName": "dist.tar.gz",
+  "remoteGoOn": []
 }
 ```
 
@@ -62,6 +64,23 @@ xq-remote test
 环境选择优先级为：命令行参数 > `NODE_CONFIG_ENV` > `NODE_ENV`。显式指定环境时，必须实际加载到该名称的配置文件，例如 `prod.json`；缺少文件或名称写错会立即终止，禁止仅回退到默认配置部署。未指定环境时沿用 node-config 的默认合并规则（包括可能存在的 `development`、`local` 配置），并要求加载到 `default` 配置。每次运行都会打印实际配置来源，支持 `NODE_CONFIG_DIR` 指定配置目录。
 
 目录替换包含两次重命名，存在短暂切换间隙，不是零停机发布。解压或权限设置失败时旧版本不变；安装失败会尝试恢复旧版本，恢复失败时保留备份并打印路径。远程需要 Linux 常用的 `tar`、`find`、`mktemp` 和支持 `mv -T` 的工具。
+
+## 部署后顺序执行命令
+
+在对应环境配置中添加可选的 `remoteGoOn` 字符串数组。不填写或设置为 `[]` 时跳过。文件替换、旧目录清理和上传包清理全部成功后，使用同一个 SSH 连接，在远程服务器上逐条执行：
+
+```json
+{
+  "remoteGoOn": [
+    "docker exec app-nginx sh -c \"rm -rf /usr/share/nginx/html/*\"",
+    "docker cp /var/www/my-app/dist/. app-nginx:/usr/share/nginx/html/"
+  ]
+}
+```
+
+上一条命令退出码为 `0` 后才启动下一条。任一条失败或被信号终止，立即停止后续执行并返回非零退出码；全部成功后才输出“部署完成”。命令由 SSH 登录用户执行，需要具备相应权限。每条命令使用独立 shell，跨命令不保留 `cd` 或 `export`；需要共享上下文时写在同一个数组元素中，例如 `cd /var/www/my-app && ./reload.sh`。不要使用 `&` 后台启动需要等待的任务。
+
+后续命令失败时，已替换的部署目录和此前命令产生的变更不会自动回滚。数组中的每项必须是非空字符串。日志只标记步骤序号，远程命令自身的输出仍会显示。详细行为见[部署后命令说明](https://github.com/xueqi666/xq-remote/blob/main/docs/remote-go-on.md)。
 
 ## Base64 编码与解码
 

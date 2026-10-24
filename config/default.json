@@ -7,5 +7,6 @@
   "remoteDir": "",
   "remoteExtractedDir": "dist",
   "remoteTarFileName": "dist.tar.gz",
-  "requiredFiles": ["index.html"]
+  "requiredFiles": ["index.html"],
+  "remoteGoOn": []
 }

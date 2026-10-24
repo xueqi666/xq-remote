@@ -36,24 +36,35 @@ function uploadFile(localFile, remoteFile, conn, callback) {
   });
 }
 
-// 顺序执行远程步骤，只有退出码为零才允许进入下一步。
-function executeRemoteCommands(conn, commands, onSuccess) {
+// 顺序执行远程步骤，只有退出码为零才进入下一步，并标明失败阶段。
+function executeRemoteCommands(conn, commands, onSuccess, stepName = "远程步骤") {
+  // 一个 SSH 通道可能先报错再关闭，避免失败后重复完成或误执行下一步。
+  let settled = false;
+
+  // 启动、通道或退出码失败均结束本次部署，且不输出命令正文。
+  function fail(message) {
+    if (settled) return;
+    settled = true;
+    console.error(`[xq-remote] ${stepName}失败: ${message}`);
+    process.exitCode = 1;
+    conn.end();
+  }
+
   conn.exec(commands, (err, stream) => {
     if (err) {
-      console.error("[xq-remote] 无法执行远程命令:", err.message);
-      process.exitCode = 1;
-      conn.end();
+      fail(err.message);
       return;
     }
 
     stream
-      .on("close", (code) => {
+      .on("error", (error) => fail(error.message))
+      .on("close", (code, signal) => {
+        if (settled) return;
         if (code !== 0) {
-          console.error(`[xq-remote] 远程步骤失败，退出码: ${code}`);
-          process.exitCode = 1;
-          conn.end();
+          fail(signal ? `被信号 ${signal} 终止` : `退出码 ${code}`);
           return;
         }
+        settled = true;
         onSuccess();
       })
       .on("data", (data) => {
@@ -63,6 +74,21 @@ function executeRemoteCommands(conn, commands, onSuccess) {
         console.error("远程错误:", data.toString());
       });
   });
+}
+
+// 逐项等待 SSH 命令通道成功关闭，再执行数组中的下一条命令。
+function executeRemoteGoOn(conn, commands, onSuccess, index = 0) {
+  if (index >= commands.length) {
+    onSuccess();
+    return;
+  }
+  // 只记录序号，不将配置命令中可能携带的敏感参数写入日志。
+  const stepName = `部署后命令 ${index + 1}/${commands.length}`;
+  console.log(`[xq-remote] 开始执行${stepName}`);
+  executeRemoteCommands(conn, `set -e\n${commands[index]}`, () => {
+    console.log(`[xq-remote] ${stepName}执行完成`);
+    executeRemoteGoOn(conn, commands, onSuccess, index + 1);
+  }, stepName);
 }
 
 // **主流程**
@@ -83,9 +109,14 @@ function deploy() {
   conn.on("ready", () => {
     executeRemoteCommands(conn, prepareCommands, () => {
       uploadFile(tarFilePath, remoteTarFile, conn, () => {
-        executeRemoteCommands(conn, commands, () => conn.end());
+        executeRemoteCommands(conn, commands, () => {
+          executeRemoteGoOn(conn, config.remoteGoOn, () => {
+            console.log("[xq-remote] 部署完成");
+            conn.end();
+          });
+        }, "部署文件替换");
       });
-    });
+    }, "上传目录准备");
   });
 
   conn.on("error", (err) => {
